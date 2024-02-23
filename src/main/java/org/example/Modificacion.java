@@ -20,8 +20,16 @@ public class Modificacion {
     private JTextField txtNota2;
     private JButton actualizarNotaButton;
     private JButton regresarButton;
+    private JButton buscarButton;
+    // Declarar la colección como un campo de clase
+    private MongoCollection<Document> collection;
+
 
     public Modificacion() {
+        // Conexión a la base de datos
+        connectToDatabase();
+
+
         actualizarNotaButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -40,41 +48,21 @@ public class Modificacion {
                 ((JFrame) SwingUtilities.getWindowAncestor(regresarButton)).dispose();
             }
         });
+        buscarButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                buscarcedula();
+            }
+        });
     }
 
-//    private void actualizarNota() {
-//
-//        // Conexion a la base de datos
-//        MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
-//        MongoDatabase database = mongoClient.getDatabase("mydb2");
-//        MongoCollection<Document> collection = database.getCollection("mycollection");
-//
-//        // Se obtiene la cédula ingresada
-//        int cedulaInput = Integer.parseInt(JOptionPane.showInputDialog(this.ventanota, "Ingrese la cédula del estudiante que desea actualizar:", "Actualizar por Cédula", JOptionPane.QUESTION_MESSAGE));
-//
-//        // Se obtiene las nuevas notas ingresadas
-//        int nuevaNota1 = Integer.parseInt(txtNota1.getText());
-//        int nuevaNota2 = Integer.parseInt(txtNota2.getText());
-//
-//        // Se crea un filtro para identificar el documento a actualizar por la cédula
-//        Document filtro = new Document("Cedula", cedulaInput);
-//
-//        // Se crea un documento con los nuevos valores de notas
-//        Document nuevosValores = new Document("Nota1", nuevaNota1)
-//                .append("Nota2", nuevaNota2);
-//
-//        // Se crea una operación de actualización
-//        Document update = new Document("$set", nuevosValores);
-//
-//        // Actualizamos el documento que cumple con el filtro
-//        collection.updateOne(filtro, update);
-//
-//        // Limpiamos los campos de entrada después de la inserción
-//        txtNota1.setText("");
-//        txtNota2.setText("");
-//
-//        JOptionPane.showMessageDialog(this.ventanota, "Notas actualizadas correctamente", "Correcto", JOptionPane.INFORMATION_MESSAGE);
-//    }
+    private void connectToDatabase(){
+        // Realizar la conexión a MongoDB
+        MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
+        MongoDatabase database = mongoClient.getDatabase("mydb2");
+        MongoCollection<Document> collection = database.getCollection("mycollection");
+
+    }
 
 
     private void actualizarNota() {
@@ -89,13 +77,17 @@ public class Modificacion {
             int nota1 = Integer.parseInt(txtNota1.getText());
             int nota2 = Integer.parseInt(txtNota2.getText());
 
-            // Realizar la conexión a MongoDB
-            MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
-            MongoDatabase database = mongoClient.getDatabase("mydb2");
-            MongoCollection<Document> collection = database.getCollection("mycollection");
+            // Crear el filtro para encontrar el documento con la cédula específica
+            Bson filtro = Filters.eq("Cedula:", cedula);
 
+            // Crear la operación de actualización para ambos campos de notas
+            Bson actualizacion = Updates.combine(
+                    Updates.set("Nota 1:", nota1),  // Cambiado de "Nota 1" a "Nota1"
+                    Updates.set("Nota 2:", nota2)   // Nuevo campo "Nota2"
+            );
 
-            Document document = collection.findOneAndUpdate(Filters.eq("Cedula", cedula), Updates.set("Nota 1: ", nota1));
+            // Realizar la actualización en la base de datos
+            Document document = collection.findOneAndUpdate(filtro, actualizacion);
 
             JOptionPane.showMessageDialog(this.ventanota, "Notas actualizadas correctamente", "Correcto", JOptionPane.INFORMATION_MESSAGE);
 
@@ -103,5 +95,44 @@ public class Modificacion {
             JOptionPane.showMessageDialog(this.ventanota, "La cédula debe ser un número válido", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    private void buscarcedula() {
+        try {
+            // Asegúrate de que collection no sea null antes de usarlo
+            if (collection != null) {
+                // Solicitar al usuario que ingrese la cédula
+                String cedulaInput = JOptionPane.showInputDialog(ventanota, "Ingrese la Cédula del empleado que desea buscar:", "Buscar por Cédula", JOptionPane.QUESTION_MESSAGE);
+
+                // Convertir la cédula a entero
+                int cedula = Integer.parseInt(cedulaInput);
+
+                // Crear el filtro para encontrar el documento con la cédula específica
+                Bson filtro = Filters.eq("Cedula", cedula);
+
+                // Realizar la consulta en la base de datos
+                Document document = collection.find(filtro).first();
+
+                // Verificar si se encontró un documento
+                if (document != null) {
+                    // Obtener los datos del documento y mostrarlos en algún componente (por ejemplo, JOptionPane)
+                    String mensaje = "Nombre: " + document.getString("Nombre") + "\n" +
+                            "Nota 1: " + document.getInteger("Nota1") + "\n" +
+                            "Nota 2: " + document.getInteger("Nota2");
+                    JOptionPane.showMessageDialog(ventanota, mensaje, "Datos del Registro", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(ventanota, "No se encontró ningún registro con la cédula proporcionada", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(ventanota, "Error de conexión a la base de datos", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(ventanota, "La cédula debe ser un número válido", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+
+
+
+
 }
 
